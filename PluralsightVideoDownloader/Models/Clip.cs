@@ -1,7 +1,7 @@
 ﻿
 namespace PluralsightVideoDownloader.Models
 {
-    public class Movie
+    public class Clip
     {
         public string Id { get; set; }
         public string ClipId { get; set; }

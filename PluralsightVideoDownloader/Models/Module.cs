@@ -11,6 +11,6 @@ namespace PluralsightVideoDownloader.Models
         public string Title { get; set; }
         public string Duration { get; set; }
         public string PlayerUrl { get; set; }
-        public List<Movie> Clips { get; set; }
+        public List<Clip> Clips { get; set; }
     }
 }
