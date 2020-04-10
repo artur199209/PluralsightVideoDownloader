@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PluralsightVideoDownloader.Models;
 
 namespace PluralsightVideoDownloader
 {
@@ -27,6 +28,8 @@ namespace PluralsightVideoDownloader
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            var pluralsightSection = Configuration.GetSection("Pluralsight");
+            services.Configure<PluralsightSettings>(pluralsightSection);
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }
 
