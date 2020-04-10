@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using PluralsightVideoDownloader.Helpers;
 using PluralsightVideoDownloader.Models;
 using Serilog;
 
@@ -13,56 +14,94 @@ namespace PluralsightVideoDownloader.Services
     public class PluralsightConnector
     {
         public static HttpClient PluralsightClient;
+        private readonly PluralsightSettings _pluralsightSettings;
 
-        public PluralsightConnector()
+        public PluralsightConnector(PluralsightSettings pluralsightSettings)
         {
             PluralsightClient = new HttpClient();
+            _pluralsightSettings = pluralsightSettings;
         }
 
-        public List<Module> GetAllMoviesDataFromCourse(string courseName)
+        public List<Module> GetAllMoviesDataFromCourse(string courseUrl)
         {
             List<Module> modulesWithClips;
-            var url = $"https://app.pluralsight.com/learner/content/courses/{courseName}";
-            var client = new HttpClient();
-            using (var response = client.GetAsync(url).Result)
-            {
-                using (HttpContent content = response.Content)
-                {
-                    string result = content.ReadAsStringAsync().Result;
-                    var deserializeObject = (JObject)JsonConvert.DeserializeObject(result);
-                    var deserializeModules = deserializeObject["modules"];
 
-                    modulesWithClips = JsonConvert.DeserializeObject<List<Module>>(deserializeModules.ToString());
+            try
+            {
+                Log.Logger.Information("Get course name...");
+                var courseName = PathHelper.GetCourseName(courseUrl);
+                Log.Logger.Information($"Course name: {courseName}");
+                var url = $"{_pluralsightSettings.LearnerPath}{courseName}";
+
+                Log.Logger.Information("Get course data...");
+
+                using (var response = PluralsightClient.GetAsync(url).Result)
+                {
+                    using (var content = response.Content)
+                    {
+                        var result = content.ReadAsStringAsync().Result;
+                        var deserializeObject = (JObject)JsonConvert.DeserializeObject(result);
+                        var deserializeModules = deserializeObject["modules"];
+
+                        Log.Logger.Information("Successfully got modules info...");
+                        modulesWithClips = JsonConvert.DeserializeObject<List<Module>>(deserializeModules.ToString());
+                    }
                 }
+
+                foreach (var module in modulesWithClips)
+                {
+                    module.CourseName = courseName;
+
+                    for (var i = 0; i < module.Clips.Count; i++)
+                    {
+                        var result = GetVideoAndTranscriptLinksToMovie(module.Clips[i].ClipId).Result;
+                        module.Clips[i].MovieLink = result.Item1;
+                        module.Clips[i].Title = $"{i+1}. {module.Clips[i].Title}";
+                        module.Clips[i].TranscriptLink = result.Item2;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Logger.Error(e.ToString());
+                Log.Logger.Error(e.StackTrace);
+                Console.WriteLine(e);
+                throw;
             }
 
             return modulesWithClips;
         }
 
-        public async Task<string> GetLinkToMovie(string title)
+        private async Task<Tuple<string, string>> GetVideoAndTranscriptLinksToMovie(string clipId)
         {
             try
             {
                 Log.Logger.Information("Start extracting movie link...");
-                string movieLink;
-
-                var paramJson = "{\"clipId\":\"{title}\",\"mediaType\":\"mp4\",\"quality\":\"1280x720\",\"online\":true,\"boundedContext\":\"course\",\"versionId\":\"\"}";
-                var paramJsonWithTitle = paramJson.Replace("{title}", title);
+                Tuple<string, string> linksResult;
+ 
+                var paramJson = "{\"clipId\":\"{clipId}\",\"mediaType\":\"mp4\",\"quality\":\"1280x720\",\"online\":true,\"boundedContext\":\"course\",\"versionId\":\"\"}";
+                var paramJsonWithTitle = paramJson.Replace("{clipId}", clipId);
                 var stringContent = new StringContent(paramJsonWithTitle, Encoding.UTF8, "application/json");
-
+                var transcriptApi = _pluralsightSettings.TranscriptPath;
+               
                 using (var client = new HttpClient())
                 {
-                    client.DefaultRequestHeaders.Add("Cookie", "Version%7C4.4.0; profileScores=0|0|0|0|0|0|0|2; mbox=PC#bf8eb4d0cf454d6f92565b88e28c7935.37_0#1649662505|session#f08743ba720247f3b4b66432ff7d3c5d#1586418783; __cfduid=d1bdfcfcdac45cc7093786432641a718f1586154014; _psga=GA1.2.971832946.1586154022; _fbp=fb.1.1586154024958.2121665614; IR_PI=b05db15e-77ce-11ea-8f5f-42010a24660a%7C1586437472033; ei_client_id=5e8ebfa588a38a0010952ddd; _mkto_trk=id:306-DUP-745&token:_mch-pluralsight.com-1586154026662-89198; ps_optout=0; _sdsat_Target Subscription Info=; dyn_previousPage=https://app.pluralsight.com/player; ajs_user_id=%22b12c181b-7066-4bd7-8c8f-3db8056b2b40%22; ajs_group_id=null; ajs_anonymous_id=%2283e2b631-af7f-45ba-9ee3-ae1f063e4793%22; _sdsat_AJS User Cookie=%22b12c181b-7066-4bd7-8c8f-3db8056b2b40%22; NPS_a97f541b_last_seen=1586169787650; PsJwt-production=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJoYW5kbGUiOiJiMTJjMTgxYi03MDY2LTRiZDctOGM4Zi0zZGI4MDU2YjJiNDAiLCJpYXQiOjE1ODYxNjk3ODIsImV4cCI6MTU4Njc3NDU4Mn0.sItt5Y0KFyISmceMhFmti4YIIJmc-Y_oGkJLIKANBWQ; www-status-production=1; _sdsat_v03 - Global - User ID=b12c181b-7066-4bd7-8c8f-3db8056b2b40; _sdsat_v77 - SKUs & Slices=IND-M-PLUS; muxData=mux_viewer_id=86bdb913-3976-4653-8667-99bcce83f6bb&msn=0.519908654234268&sid=0a634095-660f-4735-b771-7aa0563054c0&sst=1586416926466&sex=1586418905688; _ga=GA1.2.891146297.1586170603; prism-cookienotify=1586170844995; __qca=P0-1875348513-1586170987515; _psga_gid=GA1.2.1571929724.1586348392; _gid=GA1.2.130228263.1586350915; mp_a439cb00b58dae694855aa14226ddf12_mixpanel=%7B%22distinct_id%22%3A%20%221715ac6ac96a-008834a712b629-4c302f7e-e1000-1715ac6ac9716c%22%2C%22%24device_id%22%3A%20%221715ac6ac96a-008834a712b629-4c302f7e-e1000-1715ac6ac9716c%22%2C%22mp_lib%22%3A%20%22Segment%3A%20web%22%2C%22%24initial_referrer%22%3A%20%22%24direct%22%2C%22%24initial_referring_domain%22%3A%20%22%24direct%22%7D; __RequestVerificationToken_L2lk0=yBFpIu6aORuqVh0GVaiTucCTMGebil--ZrZO76NlQvhBDBgyX2A89jD1yydUuKtiKOeDdZ65ZS2D6OXybPlU0DupUsI1; __cfruid=c919917386f234f16601d2afa577c12610d9d8fe-1586410337; check=true; QSI_HistorySession=https%3A%2F%2Fapp.pluralsight.com%2Fid%2F~1586362067650; AMCVS_70D658CC558978FF7F000101%40AdobeOrg=1; s_cc=true; s_sq=%5B%5BB%5D%5D; at_check=true; IR_gbd=pluralsight.com; IR_7490=1586413475393%7C0%7C1586413475393%7C%7C; hd_jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE1ODY5NzA3MDAsImlhdCI6MTU4NjM2NTkwMCwiYXVkIjoiaHR0cHM6Ly9oZWxwLnBsdXJhbHNpZ2h0LmNvbSIsInBlcm1pc3Npb25fZ3JvdXBzIjpbImdyb3VwOnlocW83eTB6ajEiXX0.ut5qtfVNmjdT3SyQ7uR9klMuj7DrJAVw_FBqZksSLVI; __cf_bm=7df683a21a7f1060d619c7e5492d89680282ba33-1586416921-1800-AVe1q1zpWX06RFlzQvMJJr0MjLOhcHT6jZdiCIwiFsBHYpK0jcyEwbAxk4MRKcb1ep7S9kpJYhpGJNfRIn6SGkA=; mboxEdgeCluster=37");
-                    var response = await client.PostAsync("https://app.pluralsight.com/video/clips/v3/viewclip", stringContent);
+                    client.DefaultRequestHeaders.Add("Cookie",
+                        "ps_trk=1; fv=1; AMCV_70D658CC558978FF7F000101%40AdobeOrg=1585540135%7CMCIDTS%7C18363%7CMCMID%7C08428151936998023158689638586185885249%7CMCAID%7CNONE%7CMCOPTOUT-1586506499s%7CNONE%7CvVersion%7C4.4.0; profileScores=0|0|0|0|0|0|0|0; at_check=true; __cfduid=d09d441edba65f7eeed166adc886c94c61586499262; __cfruid=b31c0ef184f334ce6fe9e7000fd3169ba9686048-1586499262; AMCVS_70D658CC558978FF7F000101%40AdobeOrg=1; s_cc=true; IR_gbd=pluralsight.com; IR_7490=1586499266071%7Cc-9961%7C1586499266071%7C%7C; s_sq=%5B%5BB%5D%5D; IR_PI=1586499266071.tuyad38z91r%7C1586585666071; __RequestVerificationToken_L2lk0=hvdsn63di4XKXAlbj1GCfOb3Rjqb6YnVndxtJ6n5enYq7yD9oBsyJzl9hQrsYlkxmImed1wIHmOYeW0exU8eTuLAW_U1; _sdsat_Target Subscription Info=; check=true; dyn_previousPage=https://app.pluralsight.com/library/courses/aspnet-core-fundamentals/table-of-contents; ajs_user_id=%2207e7b442-653d-4c1a-b4e3-5f586663531c%22; ajs_group_id=null; ajs_anonymous_id=%22de532821-575f-4130-8efa-778d736532b7%22; QSI_HistorySession=https%3A%2F%2Fapp.pluralsight.com%2Fid%3F~1586499269147; NPS_a97f541b_last_seen=1586499273978; PsJwt-production=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJoYW5kbGUiOiIwN2U3YjQ0Mi02NTNkLTRjMWEtYjRlMy01ZjU4NjY2MzUzMWMiLCJpYXQiOjE1ODY0OTkyNzMsImV4cCI6MTU4NzEwNDA3M30.eAz2PiZbCOnmu4N973MJ2VHdc_JWa8M3XH60BuiKGBY; www-status-production=1; _sdsat_AJS User Cookie=%2207e7b442-653d-4c1a-b4e3-5f586663531c%22; _sdsat_v03 - Global - User ID=07e7b442-653d-4c1a-b4e3-5f586663531c; _sdsat_v77 - SKUs & Slices=IND-M-PLUS; experimentCookie=profile-no-interest-selected-in-app-notification|2,personalized-newest-courses|control,learning_recommendations_toc_a/b|control; __cf_bm=2a64dc6032d9b5135abf9f51b6052aa20f15aae4-1586501827-1800-ASTgcTImmPToRAXUPZI+k3EhcpoohZ+g1HUoMYKW6Pi+KtuEQB9zCanhLkTfF7l+5CfBv5u9JmrRZd/meAAUveM=; mbox=session#5b9ab466499e4b71876a347ec3fdbb13#1586503691");
+                    var response = await client.PostAsync(_pluralsightSettings.ViewClipPath, stringContent);
 
                     var result = response.Content.ReadAsStringAsync().Result;
                     var jsonObject = (JObject)JsonConvert.DeserializeObject(result);
-                    movieLink = jsonObject["urls"][3]["url"].ToString();
+                    Log.Logger.Information(jsonObject.ToString());
+                    var movieLink = jsonObject["urls"]?[0]?["url"]?.ToString();
+                    var version = jsonObject["version"].ToString();
+                    var transcriptUrl = transcriptApi.Replace("{clipId}", clipId).Replace("{version}", version);
                     Log.Logger.Information($"Movie link: {movieLink}");
+                    linksResult = new Tuple<string, string>(movieLink, transcriptUrl);
+                    await Task.Delay(2500);
                 }
-                VideoDownloader videoDownloader = new VideoDownloader();
-                videoDownloader.DownloadVideo(movieLink);
-                return movieLink;
+
+                return linksResult;
             }
             catch (Exception e)
             {
