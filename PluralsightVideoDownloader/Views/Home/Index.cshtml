@@ -4,15 +4,24 @@
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
 </div>
 
 <form>
     <div class="form-group">
-        <input name="courseUrl" id="courseUrl"  placeholder="Tutaj wpisz link do kursu..." class="form-control" />
+        <input name="courseUrl" id="courseUrl" placeholder="Tutaj wpisz link do kursu..." class="form-control" />
     </div>
-
-    <div class="text-center">
-        <input type="submit" id="downloadCourseBtn" class="btn btn-primary" value="Download">
+   
+    <div class="text-center col-xl-12" rows="6" cols="12">
+        <input type="button" id="downloadCourseBtn" class="btn btn-primary" value="Download">
     </div>
 </form>
+
+<br/>
+
+<div id="status">
+</div>
+
+<div id="statusLog"></div>
+
+<div class="container my-4 col-xl-12 col-xl-auto" id="mainStatus">
+</div>
