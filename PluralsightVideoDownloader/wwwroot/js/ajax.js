@@ -1,11 +1,12 @@
 ﻿$(document).ready(function () {
     $("#downloadCourseBtn").click(function () {
+        $("#downloadCourseBtn").disabled = true;
         $.ajax(
             {
                 type: "POST",
-                url: "Home/Test",  
+                url: "Home/Index2",
                 data: {
-                    Name: $("#courseUrl").val()
+                    url: $("#courseUrl").val()
                 }
             });  
     });
