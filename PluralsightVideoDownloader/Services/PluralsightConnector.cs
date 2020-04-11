@@ -55,13 +55,15 @@ namespace PluralsightVideoDownloader.Services
                     }
                 }
 
+                _signalHubContext.Clients.All.SendAsync("notification", "Start getting all movies and transcripts links...");
+                
                 foreach (var module in modulesWithClips)
                 {
                     module.CourseName = courseName;
 
                     for (var i = 0; i < module.Clips.Count; i++)
                     {
-                        var result = GetVideoAndTranscriptLinksToMovie(module.Clips[i].ClipId).Result;
+                        var result = GetVideoAndTranscriptLinksToMovie(module.Clips[i].ClipId, module.Clips[i].Title).Result;
                         module.Clips[i].MovieLink = result.Item1;
                         module.Clips[i].Title = $"{i+1}. {module.Clips[i].Title}";
                         module.Clips[i].TranscriptLink = result.Item2;
@@ -82,10 +84,11 @@ namespace PluralsightVideoDownloader.Services
             return modulesWithClips;
         }
 
-        private async Task<Tuple<string, string>> GetVideoAndTranscriptLinksToMovie(string clipId)
+        private async Task<Tuple<string, string>> GetVideoAndTranscriptLinksToMovie(string clipId, string title)
         {
             try
             {
+                await _signalHubContext.Clients.All.SendAsync("notification", $"Start extracting movie links for {title}...");
                 Log.Logger.Information("Start extracting movie link...");
                 Tuple<string, string> linksResult;
  
@@ -107,6 +110,8 @@ namespace PluralsightVideoDownloader.Services
                     var version = jsonObject["version"].ToString();
                     var transcriptUrl = transcriptApi.Replace("{clipId}", clipId).Replace("{version}", version);
                     Log.Logger.Information($"Movie link: {movieLink}");
+                    await _signalHubContext.Clients.All.SendAsync("notification", $"Successfully got all movie links for {title}...");
+
                     linksResult = new Tuple<string, string>(movieLink, transcriptUrl);
                     await Task.Delay(2500);
                 }
@@ -115,6 +120,7 @@ namespace PluralsightVideoDownloader.Services
             }
             catch (Exception e)
             {
+                await _signalHubContext.Clients.All.SendAsync("Error");
                 Log.Logger.Error(e.ToString());
                 Log.Logger.Error(e.StackTrace);
                 Console.WriteLine(e);

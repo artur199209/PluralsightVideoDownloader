@@ -4,7 +4,8 @@
     .build();
 
 connection.on("notification", (message) => {
-    $("#statusLog").innerHTML = "<li>" + message + "</li>";
+    $('#statusLogger').append(message + "\n");
+    $('#statusLogger').scrollTop($('#statusLogger')[0].scrollHeight);
 });
 
 connection.on("UpdateProgressBar", (name, value) => {
@@ -16,22 +17,37 @@ connection.on("UpdateProgressBar", (name, value) => {
 });
 
 connection.on("InitProgressBar", (message) => {
-    var htmlString;
     var div = document.getElementById('status');
-    
-    for (var index = 0; index < message.length; index++) {
-        htmlString = 
-            "<div class='form-group' id='>" + message[index] + "'"+
-            "<label>" +
-            message[index] +
-            "</label>" +
-            "<div class='progress'>" +
-            "<div class='progress-bar' id='" +
-            message[index] + "prb'"+
-            "style='width: 0%'>0%</div>" +
-            "</div></div>";
+    console.log(message);
+    for (var i = 0; i < message.length; i++) {
+        var htmlString =
+            "<div class='form-group' id='>" + message[i] + "'" +
+                "<label>" +
+                message[i] +
+                "</label>" +
+                "<div class='progress'>" +
+                "<div class='progress-bar' id='" +
+                message[i] + "prb'" +
+                "style='width: 0%'>0%</div>" +
+                "</div></div>";
         div.innerHTML += htmlString;
     }
+});
+
+connection.on("Complete", () => {
+    $('#downloadCourseBtn').removeAttr('disabled');
+    $('#statusLogger').val('');
+    $('#courseUrl').val('');
+    $('#status').val('');
+    alert("Completed!!!");
+});
+
+connection.on("Error", () => {
+    $('#downloadCourseBtn').removeAttr('disabled');
+    $('#statusLogger').val('');
+    $('#courseUrl').val('');
+    $('#status').val('');
+    alert("Error has occured. Please send me logs.");
 });
 
 connection.start().then(function () {

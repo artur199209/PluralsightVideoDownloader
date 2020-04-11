@@ -1,6 +1,6 @@
 ﻿$(document).ready(function () {
     $("#downloadCourseBtn").click(function () {
-        $("#downloadCourseBtn").disabled = true;
+        $('#downloadCourseBtn').attr('disabled', 'disabled');
         $.ajax(
             {
                 type: "POST",

@@ -34,6 +34,9 @@ namespace PluralsightVideoDownloader.Services
                 var transcriptDownloadPath = PathHelper.CombineDownloadPathWithExtension(_pluralsightConfiguration.Value.DownloadPath, module.CourseName,
                     module.Title, clip.Title, ".txt");
                 await DownloadVideoAsync(clip.MovieLink, clip.TranscriptLink, movieDownloadPath, transcriptDownloadPath);
+
+                int progress = CalculateDownloadVideoProgress(module.Clips.IndexOf(clip) + 1, module.Clips.Count);
+                await _signalHubContext.Clients.All.SendAsync("UpdateProgressBar", module.Title, progress);
             }
 
             await _signalHubContext.Clients.All.SendAsync("notification", $"{module.Title} has been downloaded...");
@@ -54,6 +57,7 @@ namespace PluralsightVideoDownloader.Services
             }
             catch (Exception e)
             {
+                await _signalHubContext.Clients.All.SendAsync("Error");
                 Log.Logger.Error(e.ToString());
                 Log.Logger.Error(e.StackTrace);
                 Console.WriteLine(e);
@@ -63,10 +67,17 @@ namespace PluralsightVideoDownloader.Services
 
         public async Task DownloadAllCourse(List<Module> modules)
         {
-            var modulesArray = modules.SelectMany(x => x.Title).ToArray();
+            var modulesArray = modules.Select(x => x.Title).ToArray();
             await _signalHubContext.Clients.All.SendAsync("InitProgressBar", modulesArray);
 
             await Task.WhenAll(modules.Select(DownloadModule));
+            await _signalHubContext.Clients.All.SendAsync("Complete");
+        }
+
+        private int CalculateDownloadVideoProgress(int completed, int all)
+        {
+            int progress = 100 * completed / all;
+            return progress;
         }
 
     }
