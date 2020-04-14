@@ -11,16 +11,30 @@ namespace PluralsightVideoDownloader.Helpers
             return segments[segments.Count - 2];
         }
 
-        public static string CombineDownloadPathWithExtension(string mainPath, string courseName, string moduleName, string fileName, string extension)
+        private static string EnsureNameDoesNotContainSpecialCharacters(string name)
         {
-            var pathWithoutExtension = Path.Combine(mainPath, courseName, moduleName);
-
-            if (!Directory.Exists(pathWithoutExtension))
+            foreach (char c in Path.GetInvalidFileNameChars())
             {
-                Directory.CreateDirectory(pathWithoutExtension);
+                name = name.Replace(c, ' ');
             }
 
-            return Path.Combine(pathWithoutExtension, fileName + extension);
+            return name.Trim();
+        }
+
+        public static string CombineDownloadPathWithExtension(string mainPath, string skillPathTitle, string courseName, string moduleName, string fileName, string extension)
+        {
+            var courseNameWithoutSpecialChars = EnsureNameDoesNotContainSpecialCharacters(courseName);
+            var moduleNameWithoutSpecialChars = EnsureNameDoesNotContainSpecialCharacters(moduleName);
+            var fileNameWithoutSpecialChars = EnsureNameDoesNotContainSpecialCharacters(fileName);
+
+            var mainDirectoryPath = Path.Combine(mainPath, skillPathTitle, courseNameWithoutSpecialChars, moduleNameWithoutSpecialChars);
+
+            if (!Directory.Exists(mainDirectoryPath))
+            {
+                Directory.CreateDirectory(mainDirectoryPath);
+            }
+
+            return Path.Combine(mainDirectoryPath, fileNameWithoutSpecialChars + extension);
         }
     }
 }
