@@ -35,19 +35,13 @@ connection.on("InitProgressBar", (message) => {
 });
 
 connection.on("Complete", () => {
-    $('#downloadCourseBtn').removeAttr('disabled');
-    $('#statusLogger').val('');
-    $('#courseUrl').val('');
-    $('#status').val('');
     alert("Completed!!!");
+    location.reload();
 });
 
 connection.on("Error", () => {
-    $('#downloadCourseBtn').removeAttr('disabled');
-    $('#statusLogger').val('');
-    $('#courseUrl').val('');
-    $('#status').val('');
     alert("Error has occured. Please send me logs.");
+    location.reload();
 });
 
 connection.start().then(function () {
