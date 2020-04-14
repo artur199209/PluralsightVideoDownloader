@@ -39,9 +39,8 @@ namespace PluralsightVideoDownloader.Services
                 var courseName = PathHelper.GetCourseName(courseUrl);
                 Log.Logger.Information($"Course name: {courseName}");
                 var url = $"{_pluralsightConfiguration.Value.LearnerPath}{courseName}";
-
                 Log.Logger.Information("Get course data...");
-
+                string skillPathTitle;
                 using (var response = PluralsightClient.GetAsync(url).Result)
                 {
                     using (var content = response.Content)
@@ -49,7 +48,7 @@ namespace PluralsightVideoDownloader.Services
                         var result = content.ReadAsStringAsync().Result;
                         var deserializeObject = (JObject)JsonConvert.DeserializeObject(result);
                         var deserializeModules = deserializeObject["modules"];
-
+                        skillPathTitle = deserializeObject["skillPaths"][0]["title"].ToString();
                         Log.Logger.Information("Successfully got modules info...");
                         modulesWithClips = JsonConvert.DeserializeObject<List<Module>>(deserializeModules.ToString());
                     }
@@ -60,6 +59,7 @@ namespace PluralsightVideoDownloader.Services
                 foreach (var module in modulesWithClips)
                 {
                     module.CourseName = courseName;
+                    module.SkillPathTitle = skillPathTitle;
 
                     for (var i = 0; i < module.Clips.Count; i++)
                     {
@@ -112,8 +112,9 @@ namespace PluralsightVideoDownloader.Services
                     await _signalHubContext.Clients.All.SendAsync("notification", $"Successfully got all movie links for {title}...");
 
                     linksResult = new Tuple<string, string>(movieLink, transcriptUrl);
-                    await Task.Delay(2500);
                 }
+
+                await Task.Delay(7000);
 
                 return linksResult;
             }

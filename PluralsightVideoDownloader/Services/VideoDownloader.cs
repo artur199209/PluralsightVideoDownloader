@@ -29,13 +29,13 @@ namespace PluralsightVideoDownloader.Services
 
             foreach (var clip in module.Clips)
             {
-                var movieDownloadPath = PathHelper.CombineDownloadPathWithExtension(_pluralsightConfiguration.Value.DownloadPath, module.CourseName, 
+                var movieDownloadPath = PathHelper.CombineDownloadPathWithExtension(_pluralsightConfiguration.Value.DownloadPath, module.SkillPathTitle, module.CourseName,
                     module.Title, clip.Title, ".mp4");
-                var transcriptDownloadPath = PathHelper.CombineDownloadPathWithExtension(_pluralsightConfiguration.Value.DownloadPath, module.CourseName,
+                var transcriptDownloadPath = PathHelper.CombineDownloadPathWithExtension(_pluralsightConfiguration.Value.DownloadPath, module.SkillPathTitle, module.CourseName,
                     module.Title, clip.Title, ".txt");
                 await DownloadVideoAsync(clip.MovieLink, clip.TranscriptLink, movieDownloadPath, transcriptDownloadPath);
 
-                int progress = CalculateDownloadVideoProgress(module.Clips.IndexOf(clip) + 1, module.Clips.Count);
+                var progress = CalculateDownloadVideoProgress(module.Clips.IndexOf(clip) + 1, module.Clips.Count);
                 await _signalHubContext.Clients.All.SendAsync("UpdateProgressBar", module.Title, progress);
             }
 
