@@ -51,6 +51,12 @@ namespace PluralsightVideoDownloader.Services
                 {
                     Log.Logger.Information($"Downloading movie: {movieLink} to path: {movieDownloadPath}");
                     await webClient.DownloadFileTaskAsync(new Uri(movieLink), movieDownloadPath);
+
+                    webClient.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+                    webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0");
+                    webClient.Headers.Add("Host", "app.pluralsight.com");
+                    webClient.Headers.Add("Cookie", _pluralsightConfiguration.Value.Cookie);
+                    
                     Log.Logger.Information($"Downloading transcript: {transcriptLink} to path: {transcriptDownloadPath}");
                     await webClient.DownloadFileTaskAsync(new Uri(transcriptLink), transcriptDownloadPath);
                 }

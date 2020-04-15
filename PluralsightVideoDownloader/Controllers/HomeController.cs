@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using PluralsightVideoDownloader.Services;
+using System.Threading.Tasks;
 
 namespace PluralsightVideoDownloader.Controllers
 {
@@ -20,10 +21,10 @@ namespace PluralsightVideoDownloader.Controllers
             return View();
         }
 
-        public IActionResult Index2(string url)
+        public async Task<IActionResult> Index2(string url)
         {
-            var allMoviesDataFromCourse = _pluralsightConnector.GetAllMoviesDataFromCourse(url);
-            _videoDownloader.DownloadAllCourse(allMoviesDataFromCourse).Wait();
+            var allMoviesDataFromCourse =  _pluralsightConnector.GetAllMoviesDataFromCourse(url);
+            await _videoDownloader.DownloadAllCourse(allMoviesDataFromCourse);
             return View("Index");
         }
     }

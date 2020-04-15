@@ -15,14 +15,12 @@ namespace PluralsightVideoDownloader.Services
 {
     public class PluralsightConnector : IPluralsightConnector
     {
-        public static HttpClient PluralsightClient;
         private readonly IOptions<PluralsightSettings> _pluralsightConfiguration;
         private readonly IHubContext<MyHub> _signalHubContext;
 
         public PluralsightConnector(IOptions<PluralsightSettings> pluralsightConfiguration,
             IHubContext<MyHub> signalHubContext)
         {
-            PluralsightClient = new HttpClient();
             _pluralsightConfiguration = pluralsightConfiguration;
             _signalHubContext = signalHubContext;
         }
@@ -41,7 +39,14 @@ namespace PluralsightVideoDownloader.Services
                 var url = $"{_pluralsightConfiguration.Value.LearnerPath}{courseName}";
                 Log.Logger.Information("Get course data...");
                 string skillPathTitle;
-                using (var response = PluralsightClient.GetAsync(url).Result)
+
+                var pluralsightClient = new HttpClient();
+                pluralsightClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
+                pluralsightClient.DefaultRequestHeaders.Add("Host", "app.pluralsight.com");
+                pluralsightClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0");
+                pluralsightClient.DefaultRequestHeaders.Add("Cookie", _pluralsightConfiguration.Value.Cookie);
+                
+                using (var response = pluralsightClient.GetAsync(url).Result)
                 {
                     using (var content = response.Content)
                     {
@@ -60,6 +65,8 @@ namespace PluralsightVideoDownloader.Services
                 {
                     module.CourseName = courseName;
                     module.SkillPathTitle = skillPathTitle;
+                    var moduleIndex = modulesWithClips.IndexOf(module) + 1;
+                    module.Title = $"{moduleIndex}. {module.Title}";
 
                     for (var i = 0; i < module.Clips.Count; i++)
                     {
@@ -99,9 +106,12 @@ namespace PluralsightVideoDownloader.Services
                
                 using (var client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Add("Connection", "keep-alive");
+                    client.DefaultRequestHeaders.Add("Host", "app.pluralsight.com");
+                    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0");
                     client.DefaultRequestHeaders.Add("Cookie", _pluralsightConfiguration.Value.Cookie);
                     var response = await client.PostAsync(_pluralsightConfiguration.Value.ViewClipPath, stringContent);
-
+                   
                     var result = response.Content.ReadAsStringAsync().Result;
                     var jsonObject = (JObject)JsonConvert.DeserializeObject(result);
                     Log.Logger.Information(jsonObject.ToString());
@@ -114,7 +124,7 @@ namespace PluralsightVideoDownloader.Services
                     linksResult = new Tuple<string, string>(movieLink, transcriptUrl);
                 }
 
-                await Task.Delay(7000);
+                await Task.Delay(5000);
 
                 return linksResult;
             }
